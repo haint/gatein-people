@@ -11,6 +11,7 @@ what is done:
 
 to be done:
 
+- use http://fortawesome.github.com/Font-Awesome/ icons as it contains a better "pin" icon than the current one
 - Full profile edition
 - Group membership edition (same than user membership but with the columns swapped)
 - Group edition (CRUD)
