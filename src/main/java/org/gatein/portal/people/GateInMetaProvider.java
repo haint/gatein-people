@@ -5,14 +5,13 @@ import org.exoplatform.container.PortalContainer;
 import javax.inject.Provider;
 
 /** @author <a href="mailto:julien.viet@exoplatform.com">Julien Viet</a> */
-public class GateInMetaProvider implements org.juzu.impl.inject.MetaProvider
+public class GateInMetaProvider implements juzu.inject.ProviderFactory
 {
    public <T> Provider<? extends T> getProvider(final Class<T> implementationType)
    {
       return new Provider<T>() {
          public T get() {
-            @SuppressWarnings("unchecked")
-            T ret = (T)PortalContainer.getComponent(implementationType);
+            T ret = (T)PortalContainer.getInstance().getComponentInstanceOfType(implementationType);
             return ret;
          }
       };

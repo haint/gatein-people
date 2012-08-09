@@ -44,17 +44,6 @@
 
 <div style="clear:both"></div>
 
-<script type="text/javascript">
-People = {
-  urls : {
-    findUsers : "@{findUsers()}",
-    findGroups : "@{findGroups()}",
-    getProfile : "@{getProfile()}",
-    setProfile : "@{setProfile()}",
-  }
-};
-</script>
-
 </div>
 
 </div>

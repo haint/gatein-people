@@ -11,33 +11,27 @@ $(function () {
 
   //
   $("#users").on("click", ".editable", function(e) {
-    var userName = $(this).parents(".user").attr("id");
+    var name = $(this).parents(".user").attr("id");
     // We should somehow display a spinning wheel to show the user that the operation
     // is blocking
-    $.ajax({
-      url: People.urls.getProfile,
-      data: {
-        userName: userName
-      },
-      async: false,
-      success: function(html) {
-        $("#modal-container").html(html);
+    
+    $("<div></div>").load($(".jz").jzURL("Controller.getProfile"), "userName=" + name, function() {
+    	$("#modal-container").html($(this).html());
         $("#modal").modal("show");
-      }
     });
+    
+    //
     e.stopPropagation();
     e.preventDefault();
   });
 
-  $("#people").on("click", ".modal-footer a", function() {
-
+  $("#people").on("click", ".modal-footer a", function(e) {
     //
     var query = $("#profile-form").serialize();
 
     // We should somehow display a spinning wheel to show the user that the operation
     // is blocking
-    $.ajax({
-      url: People.urls.setProfile,
+    $('.jz').jzAjax("Controller.setProfile()", {
       data: query,
       async: false,
       success: function(html) {
@@ -54,14 +48,14 @@ $(function () {
 
   //
   var searchUsers = function (append) {
-    append == append || false;
+	append == append || false;
     var args = $("#users-search").serialize();
     if (append) {
       var offset = $(".user").size();
       args = args + "&offset=" + offset;
     }
     log("doing request " + args)
-    $("<div></div>").load(People.urls.findUsers, args, function () {
+    $("<div></div>").load($(".jz").jzURL("Controller.findUsers"), args, function () {
       if (!append) {
         $("#users .checkable:not(.checked)").parents(".user").remove();
       }
@@ -78,8 +72,8 @@ $(function () {
     })
   };
   var searchGroups = function (name, userName) {
-    var args = $("#groups-search").serialize();
-    $('#groups').load(People.urls.findGroups, args, function () {
+	var args = $("#groups-search").serialize();
+    $('#groups').load($(".jz").jzURL("Controller.findGroups"), args, function () {
     })
   };
 
@@ -128,16 +122,14 @@ $(function () {
   });
 
   $("#people").on("click", ".remove-membership,.add-membership", function(e) {
-    var url = $(this).attr("href");
+    var url = $(this).attr("ajax-url");
     // We should somehow display a spinning wheel to show the user that the operation
     // is blocking
-    $.ajax({
-      url: url,
-      async: false,
-      success: function(html) {
-        $('#groups').html(html);
-      }
+    
+    $("<div></div>").load(url, function() {
+    	$('#groups').html($(this).html());
     });
+    e.stopPropagation();
     e.preventDefault();
   });
 
@@ -153,7 +145,9 @@ $(function () {
         searchUsers(true);
       }
     });
-    setTimeout("scroller();", 1500);
+    
+    //TODO: This makes many requests
+    //setTimeout("scroller();", 1500);
   };
 
   // Init UI

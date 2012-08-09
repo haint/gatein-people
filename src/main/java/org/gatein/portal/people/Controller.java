@@ -1,24 +1,5 @@
 package org.gatein.portal.people;
 
-import org.exoplatform.commons.utils.ListAccess;
-import org.exoplatform.services.organization.Group;
-import org.exoplatform.services.organization.GroupHandler;
-import org.exoplatform.services.organization.Membership;
-import org.exoplatform.services.organization.MembershipHandler;
-import org.exoplatform.services.organization.MembershipType;
-import org.exoplatform.services.organization.MembershipTypeHandler;
-import org.exoplatform.services.organization.OrganizationService;
-import org.exoplatform.services.organization.Query;
-import org.exoplatform.services.organization.User;
-import org.exoplatform.services.organization.UserHandler;
-import org.exoplatform.services.organization.UserProfile;
-import org.exoplatform.services.organization.UserProfileHandler;
-import org.juzu.Action;
-import org.juzu.Resource;
-import org.juzu.View;
-import org.juzu.Path;
-import org.juzu.template.Template;
-import javax.inject.Inject;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,8 +13,34 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import javax.inject.Inject;
+
+import juzu.Path;
+import juzu.Resource;
+import juzu.Route;
+import juzu.View;
+import juzu.plugin.ajax.Ajax;
+import juzu.request.RequestContext;
+import juzu.template.Template;
+
+import org.exoplatform.commons.utils.ListAccess;
+import org.exoplatform.container.PortalContainer;
+import org.exoplatform.container.component.RequestLifeCycle;
+import org.exoplatform.services.organization.Group;
+import org.exoplatform.services.organization.GroupHandler;
+import org.exoplatform.services.organization.Membership;
+import org.exoplatform.services.organization.MembershipHandler;
+import org.exoplatform.services.organization.MembershipType;
+import org.exoplatform.services.organization.MembershipTypeHandler;
+import org.exoplatform.services.organization.OrganizationService;
+import org.exoplatform.services.organization.Query;
+import org.exoplatform.services.organization.User;
+import org.exoplatform.services.organization.UserHandler;
+import org.exoplatform.services.organization.UserProfile;
+import org.exoplatform.services.organization.UserProfileHandler;
+
 /** @author <a href="mailto:julien.viet@exoplatform.com">Julien Viet</a> */
-public class Controller
+public class Controller implements juzu.request.RequestLifeCycle
 {
 
    /** . */
@@ -88,7 +95,7 @@ public class Controller
    @Inject
    public Controller(OrganizationService orgService)
    {
-      this.orgService = orgService;
+   	this.orgService = orgService;
       this.userHandler = orgService.getUserHandler();
       this.groupHandler = orgService.getGroupHandler();
       this.membershipHandler = orgService.getMembershipHandler();
@@ -97,12 +104,15 @@ public class Controller
    }
 
    @View
+   @Route("/")
    public void index() throws IOException
    {
       indexTemplate.render();
    }
    
+   @Ajax
    @Resource
+   @Route("/users")
    public void findUsers(String userName, String offset, String limit) throws Exception
    {
       if (userName != null)
@@ -124,33 +134,34 @@ public class Controller
       {
          size = Integer.parseInt(limit);
       }
+      
       ListAccess<User> list = userHandler.findUsersByQuery(query);
       int len = list.getSize();
+      
       from = Math.min(from, len);
       size = Math.min(len - from, size);
       User[] users = list.load(from, size);
       usersTemplate.render(Collections.singletonMap("users", users));
    }
 
+   @Ajax
    @Resource
-   public void findGroups(String groupName, List<String> userName) throws Exception
+   @Route("/groups")
+   public void findGroups(String groupName, String[] userName) throws Exception
    {
-      if (groupName != null)
-      {
-         groupName = groupName.trim();
-      }
-      
-      // All membership types
+   	List<String> list = userName == null ? new ArrayList<String>() : Arrays.asList(userName);
+
+   	// All membership types
       LinkedHashSet<String> membershipTypes = new LinkedHashSet<String>();
       
       // All groups
       List<Group> groups = new ArrayList<Group>();
 
       // Map<GroupId>, Map<MembershipType, MembershipId>>
-      final Map<String, Map<String, List<String>>> toRemove = new HashMap<String, Map<String, List<String>>>();
+      final Map<String, Map<String, String[]>> toRemove = new HashMap<String, Map<String, String[]>>();
       
       // Map<GroupId, Map<MembershipType, UserName>> 
-      Map<String, Map<String, List<String>>> toAdd = new HashMap<String, Map<String, List<String>>>();
+      Map<String, Map<String, String[]>> toAdd = new HashMap<String, Map<String, String[]>>();
       
       // Compute the view
       for (MembershipType membershipType : (Collection<MembershipType>)membershipTypeHandler.findMembershipTypes())
@@ -162,32 +173,36 @@ public class Controller
          if (groupName == null || groupName.length() == 0 || group.getGroupName().contains(groupName))
          {
             groups.add(group);
-            if (userName != null)
+            if (list != null)
             {
-               Map<String, List<String>> toRemoveByGroup = new HashMap<String, List<String>>();
-               Map<String, List<String>> toAddByGroup = new HashMap<String, List<String>>();
-               for (String _userName : userName)
+               Map<String, String[]> toRemoveByGroup = new HashMap<String, String[]>();
+               Map<String, String[]> toAddByGroup = new HashMap<String, String[]>();
+               for (String _userName : list)
                {
                   Collection<Membership> membershipsInGroup = (Collection<Membership>)membershipHandler.findMembershipsByUserAndGroup(_userName, group.getId());
                   Set<String> membershipsOutOfGroup = new HashSet<String>(membershipTypes);
                   for (Membership membership : membershipsInGroup)
                   {
-                     List<String> toRemoveByGroupAndByMembership = toRemoveByGroup.get(membership.getMembershipType());
-                     if (toRemoveByGroupAndByMembership == null)
+                     if (toRemoveByGroup.get(membership.getMembershipType()) == null)
                      {
-                        toRemoveByGroup.put(membership.getMembershipType(), toRemoveByGroupAndByMembership = new ArrayList<String>());
+                        toRemoveByGroup.put(membership.getMembershipType(), new String[] {});
                      }
+                     List<String> toRemoveByGroupAndByMembership = new ArrayList<String>(Arrays.asList(toRemoveByGroup.get(membership.getMembershipType())));
                      toRemoveByGroupAndByMembership.add(membership.getId());
+                     toRemoveByGroup.put(membership.getMembershipType(), toRemoveByGroupAndByMembership.toArray(new String[toRemoveByGroupAndByMembership.size()]));
                      membershipsOutOfGroup.remove(membership.getMembershipType());
                   }
+                  
+                  //
                   for (String membership : membershipsOutOfGroup)
                   {
-                     List<String> toAddByGroupAndMembership = toAddByGroup.get(membership);
-                     if (toAddByGroupAndMembership == null)
+                     if (toAddByGroup.get(membership) == null)
                      {
-                        toAddByGroup.put(membership, toAddByGroupAndMembership = new ArrayList<String>());
+                        toAddByGroup.put(membership, new String[] {});
                      }
+                     List<String> toAddByGroupAndMembership = new ArrayList<String>(Arrays.asList(toAddByGroup.get(membership)));
                      toAddByGroupAndMembership.add(_userName);
+                     toAddByGroup.put(membership, toAddByGroupAndMembership.toArray(new String[toAddByGroupAndMembership.size()]));
                   }
                }
                toRemove.put(group.getId(), toRemoveByGroup);
@@ -195,6 +210,8 @@ public class Controller
             }
          }
       }
+      
+      //
       Collections.sort(groups, new Comparator<Group>()
       {
          public int compare(Group o1, Group o2)
@@ -221,7 +238,9 @@ public class Controller
       groupsTemplate.render(params);
    }
    
+   @Ajax
    @Resource
+   @Route("/profile/get")
    public void getProfile(String userName) throws Exception
    {
       User user = userHandler.findUserByName(userName);
@@ -232,21 +251,24 @@ public class Controller
       profileTemplate.render(params);
    }
 
+   @Ajax
    @Resource
+   @Route("/profile/set")
    public void setProfile(String userName, String email) throws Exception
    {
       User user = userHandler.findUserByName(userName);
       user.setEmail(email);
       userHandler.saveUser(user, true);
-      String[] foo = {};
    }
 
+   @Ajax
    @Resource
-   public void removeMembership(List<String> id) throws Exception
+   @Route("/membership/remove")
+   public void removeMembership(String[] id) throws Exception
    {
       if (id != null)
       {
-         List<String> userName = new ArrayList<String>(id.size());
+      	List<String> userName = new ArrayList<String>(id.length);
          for (String _id : id)
          {
             Membership membership = membershipHandler.findMembership(_id);
@@ -256,12 +278,16 @@ public class Controller
                membershipHandler.removeMembership(_id, true);
             }
          }
-         findGroups("", userName);
+         
+         findGroups("", userName.toArray(new String[userName.size()]));
       }
+      
    }
 
+   @Ajax
    @Resource
-   public void addMembership(String type, String groupId, List<String> userName) throws Exception
+   @Route("/membership/add")
+   public void addMembership(String type, String groupId, String[] userName) throws Exception
    {
       if (userName != null)
       {
@@ -272,7 +298,16 @@ public class Controller
             User user = userHandler.findUserByName(_userName);
             membershipHandler.linkMembership(user, group, membershipType, true);
          }
+         
          findGroups("", userName);
       }
    }
+
+	public void beginRequest(RequestContext context) {
+		RequestLifeCycle.begin(PortalContainer.getInstance());
+	}
+
+	public void endRequest(RequestContext context) {
+		RequestLifeCycle.end();
+	}
 }
