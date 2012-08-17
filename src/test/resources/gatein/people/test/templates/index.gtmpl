@@ -1,0 +1,25 @@
+<%
+  String userName = null;
+  String offset = null;
+  String limit = null;
+%>
+<a id="findUsers1" href="@{TestController.findUsers(userName=userName,offset=offset,limit=limit)}">findUsers1</a>
+
+<%
+  userName = 'root';
+%>
+<a id="findUsers2" href="@{TestController.findUsers(userName=userName,offset=offset,limit=limit)}">findUsers2</a>
+
+<% 
+  String[] userNames = null;
+  String groupName = null;
+%>
+<a id="findGroup1" href="@{TestController.findGroups(groupName=groupName,userName=userNames)}">findGroups1</a>
+
+<%
+  userNames = [ "root", "john", "admin" ];
+  groupName = "administrators";
+%>
+<a id="findGroup2" href="@{TestController.findGroups(groupName=groupName,userName=userNames)}">findGroups2</a>
+
+<a id="getProfile" href="@{TestController.getProfile(userName=userName)}">getProfile</a>
